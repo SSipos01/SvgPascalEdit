@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, Menus,
-  StdCtrls, ExtCtrls;
+  StdCtrls, ExtCtrls, Contnrs, drawing;
 
 type
 
@@ -31,8 +31,17 @@ type
     procedure FormCreate(Sender: TObject);
     procedure PaintBox1Paint(Sender: TObject);
     procedure Save1Click(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure PaintBox1MouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure PaintBox1MouseMove(Sender: TObject; Shift: TShiftState; X,
+      Y: Integer);
+    procedure PaintBox1MouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
   private
-
+    FDrawingObjects: TObjectList;
+    FIsDrawing: Boolean;
+    FDownPoint: TPoint;
   public
 
   end;
@@ -48,21 +57,66 @@ implementation
 
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
+  FDrawingObjects := TObjectList.Create(True);
+  FDrawingObjects.Add(TRectangleObject.Create(Rect(20, 20, 120, 120), clRed));
+end;
 
+procedure TMainForm.FormDestroy(Sender: TObject);
+begin
+  FDrawingObjects.Free;
 end;
 
 procedure TMainForm.PaintBox1Paint(Sender: TObject);
+var
+  i: Integer;
+  Obj: TDrawingObject;
 begin
-  with PaintBox1.Canvas do
+  for i := 0 to FDrawingObjects.Count - 1 do
   begin
-    Brush.Color := clBlue;
-    FillRect(10, 10, 100, 100);
+    Obj := FDrawingObjects[i] as TDrawingObject;
+    Obj.Draw(PaintBox1.Canvas);
+  end;
+end;
+
+procedure TMainForm.PaintBox1MouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if Button = mbLeft then
+  begin
+    FIsDrawing := True;
+    FDownPoint := Point(X, Y);
+  end;
+end;
+
+procedure TMainForm.PaintBox1MouseMove(Sender: TObject; Shift: TShiftState;
+  X, Y: Integer);
+begin
+  if FIsDrawing then
+  begin
+    PaintBox1.Canvas.Refresh;
+    PaintBox1.Canvas.DrawFocusRect(Rect(FDownPoint.X, FDownPoint.Y, X, Y));
+  end;
+end;
+
+procedure TMainForm.PaintBox1MouseUp(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+var
+  NewRect: TRect;
+begin
+  if FIsDrawing and (Button = mbLeft) then
+  begin
+    FIsDrawing := False;
+    NewRect := Rect(FDownPoint.X, FDownPoint.Y, X, Y);
+    FDrawingObjects.Add(TRectangleObject.Create(NewRect, clGreen));
+    PaintBox1.Invalidate;
   end;
 end;
 
 procedure TMainForm.Save1Click(Sender: TObject);
 var
   SVGContent: TStringList;
+  i: Integer;
+  Obj: TDrawingObject;
 begin
   SaveDialog1.Filter := 'SVG files (*.svg)|*.svg';
   if SaveDialog1.Execute then
@@ -70,7 +124,11 @@ begin
     SVGContent := TStringList.Create;
     try
       SVGContent.Add('<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg">');
-      SVGContent.Add('  <rect x="10" y="10" width="90" height="90" fill="blue" />');
+      for i := 0 to FDrawingObjects.Count - 1 do
+      begin
+        Obj := FDrawingObjects[i] as TDrawingObject;
+        SVGContent.Add(Obj.ToSVG);
+      end;
       SVGContent.Add('</svg>');
       SVGContent.SaveToFile(SaveDialog1.FileName);
     finally

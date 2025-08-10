@@ -7,6 +7,7 @@ object MainForm: TMainForm
   ClientHeight = 480
   ClientWidth = 640
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   LCLVersion = '2.0.12.0'
   object Splitter1: TSplitter
     Left = 160
@@ -56,6 +57,9 @@ object MainForm: TMainForm
       Width = 473
       Align = alClient
       OnPaint = PaintBox1Paint
+      OnMouseDown = PaintBox1MouseDown
+      OnMouseMove = PaintBox1MouseMove
+      OnMouseUp = PaintBox1MouseUp
     end
   end
   object MainMenu1: TMainMenu
